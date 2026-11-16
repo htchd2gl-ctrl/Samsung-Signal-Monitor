@@ -2,9 +2,9 @@
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "UUID": "de.signalmonitor.monitor",
   "Name": "Samsung Signal Monitor",
-  "Version": "0.2.0.0",
+  "Version": "0.3.0.0",
   "Author": "Private Project",
-  "Description": "Private Windows/Tailscale phone signal monitor",
+  "Description": "Signal und private WhatsApp-Benachrichtigungen vom XCover6 Pro",
   "CodePath": "plugin.js",
   "SDKVersion": 2,
   "Nodejs": {
@@ -48,6 +48,54 @@
       "States": [
         {
           "Image": "img/icon"
+        }
+      ]
+    },
+    {
+      "UUID": "de.signalmonitor.monitor.wacall",
+      "Name": "WhatsApp Anrufmeldung",
+      "Tooltip": "XCover6 Pro: aktive WhatsApp-Benachrichtigungen",
+      "Icon": "img/icon",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "img/icon",
+          "TitleAlignment": "bottom",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
+      "UUID": "de.signalmonitor.monitor.watext",
+      "Name": "WhatsApp Nachricht",
+      "Tooltip": "XCover6 Pro: aktive WhatsApp-Benachrichtigungen",
+      "Icon": "img/icon",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "img/icon",
+          "TitleAlignment": "bottom",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
+      "UUID": "de.signalmonitor.monitor.wacount",
+      "Name": "WhatsApp Anzahl",
+      "Tooltip": "XCover6 Pro: aktive WhatsApp-Benachrichtigungen",
+      "Icon": "img/icon",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "img/icon",
+          "TitleAlignment": "bottom",
+          "ShowTitle": false
         }
       ]
     }

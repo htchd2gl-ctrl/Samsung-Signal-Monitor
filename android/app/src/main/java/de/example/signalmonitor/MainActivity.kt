@@ -2,6 +2,12 @@ package de.example.signalmonitor
 
 import android.Manifest
 import android.app.Activity
+import android.provider.Settings
+import android.service.notification.NotificationListenerService
+import android.content.ComponentName
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -37,6 +43,9 @@ class MainActivity : Activity() {
   view.addView(TextView(this).apply{text="Geräteschlüssel (aus EINRICHTUNG-GEHEIM.txt)"})
   token=EditText(this).apply{setSingleLine(true);inputType=129;setText(prefs.getString("token",""))};view.addView(token)
   view.addView(Button(this).apply{text="Speichern und verbinden";setOnClickListener{save();register()}})
+  view.addView(TextView(this).apply{text="WhatsApp Live: nur XCover6. Uebertraegt sichtbare WhatsApp-Benachrichtigungen an deinen privaten PC. Kein vollstaendiger Chat-Zugriff."})
+  view.addView(CheckBox(this).apply{ text="WhatsApp-Inhalte an PC uebertragen";isChecked=prefs.getBoolean("wa_enabled",false);setOnCheckedChangeListener{_,checked->prefs.edit().putBoolean("wa_enabled",checked).apply();NotificationListenerService.requestRebind(ComponentName(this@MainActivity,WhatsAppListener::class.java))} })
+  view.addView(Button(this).apply{text="Benachrichtigungszugriff freigeben";setOnClickListener{startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))}})
   status=TextView(this).apply{setPadding(0,28,0,0);textSize=17f;text="App geöffnet lassen; Tailscale auf EIN stellen."};view.addView(status)
   setContentView(ScrollView(this).apply{addView(view)})
   if(checkSelfPermission(Manifest.permission.READ_PHONE_STATE)!=PackageManager.PERMISSION_GRANTED)requestPermissions(arrayOf(Manifest.permission.READ_PHONE_STATE),11)
@@ -67,9 +76,24 @@ class MainActivity : Activity() {
  private val tick=object:Runnable {override fun run(){
   if(!monitoring)return
   val value=measurement;val u=prefs.getString("url","")!!.trimEnd('/');val t=prefs.getString("token","")!!;val id=prefs.getString("device","fold7")!!
-  if(value!=null&&Regex("^http://100\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:8787$").matches(u)&&t.isNotBlank())executor.execute{post(u,t,id,value)}
+  if(Regex("^http://100\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:8787$").matches(u)&&t.isNotBlank())executor.execute{if(value!=null)post(u,t,id,value);postBattery(u,t,id)}
   handler.postDelayed(this,10000)
  }}
+ private fun postBattery(u:String,t:String,id:String){
+  val battery=registerReceiver(null,IntentFilter(Intent.ACTION_BATTERY_CHANGED))?:return
+  val level=battery.getIntExtra(BatteryManager.EXTRA_LEVEL,-1)
+  val scale=battery.getIntExtra(BatteryManager.EXTRA_SCALE,-1)
+  if(level<0||scale<=0)return
+  val state=battery.getIntExtra(BatteryManager.EXTRA_STATUS,-1)
+  var conn:HttpURLConnection?=null
+  try{
+   conn=(URL("$u/v1/battery").openConnection() as HttpURLConnection).apply{requestMethod="POST";connectTimeout=5000;readTimeout=5000;doOutput=true;setRequestProperty("Authorization","Bearer $t");setRequestProperty("X-Device-Id",id);setRequestProperty("Content-Type","application/json")}
+   val data=JSONObject().put("level",(level*100/scale).coerceIn(0,100)).put("charging",state==BatteryManager.BATTERY_STATUS_CHARGING||state==BatteryManager.BATTERY_STATUS_FULL)
+   conn.outputStream.use{it.write(data.toString().toByteArray())}
+   if(conn.responseCode !in 200..299)runOnUiThread{status.text="Akku: Server HTTP ${conn.responseCode} – PC-Server aktualisieren / Schlüssel prüfen"}
+  }catch(e:Exception){runOnUiThread{status.text="Akku: PC nicht erreichbar – Tailscale prüfen"}}
+  finally{conn?.disconnect()}
+ }
  private fun post(u:String,t:String,id:String,v:Pair<Int,String>){
   var conn:HttpURLConnection?=null
   try{
