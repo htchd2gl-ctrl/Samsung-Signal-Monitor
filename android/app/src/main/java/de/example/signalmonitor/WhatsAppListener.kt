@@ -22,6 +22,7 @@ class WhatsAppListener : NotificationListenerService() {
  override fun onNotificationRemoved(sbn:StatusBarNotification){if(sbn.packageName=="com.whatsapp")schedule()}
  private fun schedule(){handler.removeCallbacks(tick);handler.postDelayed(tick,400)}
  private val tick=object:Runnable{override fun run(){if(!connected)return;sendSnapshot();handler.postDelayed(this,15000)}}
+ private fun messageStyle(n:Notification):Notification.MessagingStyle? = try { Notification.Builder.recoverBuilder(this,n).style as? Notification.MessagingStyle } catch(e:Exception){null}
  private fun sendSnapshot(){
   if(busy||prefs.getString("device","")!="xcover6")return
   val u=prefs.getString("url","")!!.trimEnd('/')
@@ -35,11 +36,11 @@ class WhatsAppListener : NotificationListenerService() {
   val call=all.firstOrNull{it.notification.category==Notification.CATEGORY_CALL}
   val latest=messages.firstOrNull()
   fun text(n:Notification?,key:String,max:Int)=n?.extras?.getCharSequence(key)?.toString()?.take(max)?:""
-  val style=latest?.let{Notification.MessagingStyle.extractMessagingStyleFromNotification(it.notification)}
+  val style=latest?.let{messageStyle(it.notification)}
   val last=style?.messages?.lastOrNull()
   val sender=(last?.senderPerson?.name?.toString()?:text(latest?.notification,Notification.EXTRA_TITLE,120)).take(120)
   val preview=(last?.text?.toString()?:text(latest?.notification,Notification.EXTRA_TEXT,500)).take(500)
-  val count=messages.sumOf { Notification.MessagingStyle.extractMessagingStyleFromNotification(it.notification)?.messages?.size?.coerceAtLeast(1)?:1 }.coerceAtMost(9999)
+  val count=messages.sumOf { messageStyle(it.notification)?.messages?.size?.coerceAtLeast(1)?:1 }.coerceAtMost(9999)
   val body=JSONObject().put("enabled",enabled).put("count",if(enabled)count else 0).put("chats",if(enabled)messages.size.coerceAtMost(9999) else 0)
    .put("sender",if(enabled)sender else "").put("text",if(enabled)preview else "").put("caller",if(enabled)text(call?.notification,Notification.EXTRA_TITLE,120) else "")
   busy=true
